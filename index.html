@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>School Bus Scanner</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f3f5f7;color:#17202a}
+header{background:#1f7a3a;color:white;padding:22px 18px;text-align:center}
+header h1{margin:0 0 5px;font-size:25px} header p{margin:0;opacity:.9}
+main{max-width:700px;margin:auto;padding:20px 16px 40px}
+.card{background:white;border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:0 3px 14px #00000014}
+#reader{width:100%;min-height:260px;overflow:hidden;border-radius:14px;background:#111}
+button{width:100%;border:0;border-radius:13px;padding:16px;font-size:17px;font-weight:700;margin-top:12px}
+#start{background:#1f7a3a;color:white} #stop{background:#e9ecef;color:#17202a}
+.result{text-align:center;border-radius:14px;padding:18px;margin-top:16px;background:#eef2f5;min-height:90px}
+.success{background:#dff5e5;color:#155d2b}.error{background:#fde2e2;color:#8b1e1e}
+.small{color:#5f6b75;font-size:14px;line-height:1.45}
+code{background:#eef1f3;padding:2px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<header><h1>School Bus Scanner</h1><p>Barcode scanner — Version 1</p></header>
+<main>
+<div class="card">
+<h2>Scan your pass</h2>
+<p class="small">This first version only reads the barcode. It does not save names, attendance or route information.</p>
+<div id="reader"></div>
+<button id="start">Start camera</button>
+<button id="stop" disabled>Stop camera</button>
+<div id="result" class="result"><strong>Waiting for a scan…</strong><p class="small">Allow camera access when Safari asks.</p></div>
+</div>
+<div class="card"><h3>Next</h3><p class="small">Once this reads your barcode, we'll add Bus 557, enrolment, passenger counting and the database.</p></div>
+</main>
+<script type="module">
+import {BrowserMultiFormatReader} from "https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm";
+const reader=new BrowserMultiFormatReader();
+const box=document.getElementById("reader"), resultBox=document.getElementById("result");
+const start=document.getElementById("start"), stop=document.getElementById("stop");
+let controls=null,last="",lastTime=0;
+function show(text,ok=true){
+ resultBox.className="result "+(ok?"success":"error");
+ resultBox.innerHTML="<strong>"+(ok?"✅ Barcode detected":"❌ Scanner error")+
+ "</strong><p><code>"+String(text).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")+"</code></p>";
+}
+start.onclick=async()=>{
+ try{
+  resultBox.className="result"; resultBox.innerHTML="<strong>Starting camera…</strong><p class='small'>Point it at the barcode.</p>";
+  const devices=await BrowserMultiFormatReader.listVideoInputDevices();
+  if(!devices.length){show("No camera found.",false);return;}
+  const cam=devices.find(d=>/back|rear|environment/i.test(d.label))||devices[devices.length-1];
+  controls=await reader.decodeFromVideoDevice(cam.deviceId,box,(r)=>{
+   if(r){
+    const text=r.getText(),now=Date.now();
+    if(text!==last||now-lastTime>2500){last=text;lastTime=now;show(text);navigator.vibrate?.(100);}
+   }
+  });
+  start.disabled=true;stop.disabled=false;
+ }catch(e){show(e?.message||"Could not start the camera.",false);}
+};
+stop.onclick=()=>{
+ if(controls){controls.stop();controls=null}
+ start.disabled=false;stop.disabled=true;
+ resultBox.className="result";resultBox.innerHTML="<strong>Camera stopped</strong>";
+};
+</script>
+</body>
+</html>
